@@ -1,83 +1,104 @@
 # ⚖️ JuriToolbox — Caixa de Ferramentas Jurídicas (Versão Educacional)
 
-O **JuriToolbox** é um aplicativo interativo desenvolvido em **Python + Streamlit**, projetado para apoiar estudantes no estudo de Direito Penal e Processual Penal. Ele utiliza arquivos CSV contendo versões estruturadas do **Código Penal (CP)** e do **Código de Processo Penal (CPP)** para permitir buscas, análises e simulações.
+O **JuriToolbox** é um aplicativo interativo desenvolvido em **Python + Streamlit**, voltado para estudantes de Direito que queiram visualizar e experimentar, de forma didática, conceitos de Direito Penal e Processual Penal usando dados estruturados em CSV.
 
 > ⚠️ **Aviso importante**  
-> Este projeto tem finalidade **exclusivamente educacional**.  
+> Este projeto tem **finalidade exclusivamente educacional**.  
 > O aplicativo **não substitui** consulta jurídica, parecer profissional ou análise de caso concreto.  
-> As regras adotadas são **simplificadas**.
+> As regras implementadas são propositalmente **simplificadas**.
 
 ---
 
-# 📁 Funcionalidades
+## 📁 Funcionalidades
 
-## 🔹 1. Seleção e Consulta de Crimes (via CP e CPP em CSV)
+### 🔹 1. Consulta de Artigos no CP e CPP (via CSV)
 
-O usuário seleciona um crime diretamente a partir do `cp.csv`.  
-Em seguida, o programa:
+O usuário informa um **artigo** (ex.: `155`, `171`, `121`, `28-A`) em um campo de texto.
 
-- Localiza automaticamente todas as informações correspondentes ao crime no **Código Penal**;
-- Procura referências relacionadas no **CPP** utilizando heurísticas simples;
-- Exibe tabelas, textos e ementas formatadas conforme encontradas nos CSVs.
+O aplicativo então:
 
-Esta função é ideal para estudo rápido e navegação entre dispositivos legais.
+- Busca esse artigo na base `cp.csv` (Código Penal);
+- Busca o mesmo artigo na base `cpp.csv` (Código de Processo Penal);
+- Exibe o(s) texto(s) correspondente(s), usando as colunas de artigo e texto/descrição identificadas automaticamente.
 
----
+O código tenta ser tolerante com o formato das colunas, procurando por nomes como:
 
-## 🔹 2. Elegibilidade ao ANPP (art. 28-A do CPP)
-
-Checklist totalmente revisado e funcional baseado no art. 28-A do CPP.
-
-O módulo:
-
-- Exibe o texto do artigo 28-A (a partir do `cpp.csv`);
-- Pergunta sobre cada requisito legal (violência, pena mínima, confissão, reincidência etc.);
-- Gera automaticamente um **parecer explicativo** em linguagem natural, indicando se o caso seria ou não elegível ao ANPP segundo os critérios educacionais.
-
-Critérios incluídos:
-
-- Ausência de violência ou grave ameaça  
-- Pena mínima inferior a 4 anos  
-- Confissão formal  
-- Não reincidência dolosa  
-- Não violência doméstica/gênero  
-- Não concessão prévia de ANPP  
+- `art`, `artigo`, `artigo_numero` (para o número do artigo)
+- `texto`, `descricao`, `ementa`, `conteudo` (para o conteúdo do artigo)
 
 ---
 
-## 🔹 3. Dosimetria Simplificada (art. 59 do CP)
+### 🔹 2. Elegibilidade ao ANPP (art. 28-A do CPP)
 
-Simulador didático da dosimetria penal:
+Módulo de checklist **didático** baseado no art. 28-A do CPP.
 
-### 1ª etapa — Pena-base  
-Avaliação das 8 circunstâncias judiciais:
+Funcionalidades:
 
-- Culpabilidade  
-- Antecedentes  
-- Conduta social  
-- Personalidade  
-- Motivos  
-- Circunstâncias  
-- Consequências  
-- Comportamento da vítima  
+- Tenta localizar e exibir o **texto do art. 28-A** na base `cpp.csv`;
+- Apresenta um conjunto de perguntas ao usuário, incluindo:
+  - Fato sem violência ou grave ameaça à pessoa?
+  - Pena mínima em abstrato inferior a 4 anos?
+  - Há confissão formal e circunstanciada?
+  - Há reincidência em crime doloso?
+  - Situação envolve violência doméstica/familiar ou contra a mulher por razões de gênero?
+  - Já houve concessão prévia de ANPP em caso semelhante?
 
-O usuário escolhe: **Favorável**, **Neutra**, **Desfavorável**.  
-Cada escolha altera a pena-base numericamente de maneira didática.
+Com base nessas respostas, o módulo:
 
-### 2ª e 3ª etapas — Causas de aumento/diminuição  
-O usuário pode adicionar causas com:
-
-- Tipo: Aumento ou Diminuição  
-- Valor percentual (ex.: 0.333 para 1/3)  
-- Descrição textual
-
-### Resultado  
-O programa:
-
-- Calcula pena-base → pena intermediária → pena definitiva  
-- Converte o resultado em anos e meses  
-- Gera um **rascunho de fundamentação jurídica**, ideal para estudos e trabalhos acadêmicos
+- Indica se, **em tese**, o caso seria **potencialmente elegível** ao ANPP, segundo critérios simplificados;
+- Gera um **parecer em linguagem natural**, com explicações e ressalvas quanto ao caráter educacional do modelo.
 
 ---
 
-# 🗂️ Estrutura do Projeto
+### 🔹 3. Dosimetria Simplificada (art. 59 do CP)
+
+Simulador numérico da dosimetria da pena com base em parâmetros simplificados.
+
+#### Etapas:
+
+1. **Definição dos limites abstratos**  
+   O usuário informa a pena mínima e máxima em anos (ex.: 1 a 4 anos).
+
+2. **Avaliação das circunstâncias judiciais (art. 59 CP)**  
+   Para cada uma das 8 circunstâncias, o usuário escolhe:
+   - **Desfavorável**
+   - **Neutra**
+   - **Favorável**
+
+   Circunstâncias avaliadas:
+   - Culpabilidade  
+   - Antecedentes  
+   - Conduta social  
+   - Personalidade  
+   - Motivos  
+   - Circunstâncias  
+   - Consequências  
+   - Comportamento da vítima  
+
+   Cada circunstância “puxa” a pena-base para mais ou para menos, de forma numérica e didática.
+
+3. **Causas de aumento e diminuição (simplificadas)**  
+   O usuário pode cadastrar causas, cada uma com:
+   - Tipo: **Aumento** ou **Diminuição**  
+   - Fator: ex.: `0.333` para 1/3  
+   - Descrição: ex.: tentativa, concurso de pessoas etc.
+
+   O app aplica essas causas em sequência sobre a pena-base.
+
+4. **Resultado e Fundamentação**  
+   O módulo:
+   - Calcula a **pena-base** e a **pena final** em anos;
+   - Faz uma conversão aproximada em **anos e meses**;
+   - Gera um **rascunho de fundamentação textual**, mencionando as circunstâncias judiciais e as causas de aumento/diminuição, com aviso de que se trata apenas de simulação didática.
+
+---
+
+## 🗂️ Estrutura do Projeto
+
+```text
+JuriToolbox/
+│
+├── app.py          # Aplicativo principal (Streamlit)
+├── cp.csv          # Código Penal estruturado em CSV
+├── cpp.csv         # Código de Processo Penal estruturado em CSV
+└── README.md       # Este arquivo
