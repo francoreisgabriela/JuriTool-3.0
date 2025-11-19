@@ -11,8 +11,10 @@ def carregar_codigo(caminho):
         df = pd.read_csv(caminho)
         return df
     except FileNotFoundError:
-        st.warning(f"Arquivo não encontrado: {caminho}. "
-                   f"Verifique se o arquivo está na mesma pasta do app.py.")
+        st.warning(
+            f"Arquivo não encontrado: {caminho}. "
+            f"Verifique se o arquivo está na mesma pasta do app.py."
+        )
         return None
     except Exception as e:
         st.warning(f"Erro ao ler {caminho}: {e}")
@@ -251,9 +253,9 @@ st.markdown(
     """
 )
 
-# Carrega CP e CPP
-cp_df = carregar_codigo("cp.csv")
-cpp_df = carregar_codigo("cpp.csv")
+# Carrega CP e CPP com os NOMES REAIS dos arquivos
+cp_df = carregar_codigo("CP_Codigo_Penal.s.csv")
+cpp_df = carregar_codigo("CPP_Codigo_Processo_Penal.s.csv")
 
 # ==========================
 # 1. BUSCA DE ARTIGO NO CP E CPP
@@ -263,7 +265,7 @@ st.header("1. Consulta de artigo no CP e CPP (via CSV)")
 
 artigo_input = st.text_input(
     "Informe o artigo do crime (ex.: 155, 171, 121, 28-A):",
-    help="O programa vai buscar esse artigo nas bases cp.csv e cpp.csv."
+    help="O programa vai buscar esse artigo nas bases CP_Codigo_Penal.s.csv e CPP_Codigo_Processo_Penal.s.csv."
 )
 
 if st.button("Buscar artigos no CP e CPP"):
@@ -275,14 +277,20 @@ if st.button("Buscar artigos no CP e CPP"):
         if texto_cp:
             st.code(texto_cp)
         else:
-            st.info("Não encontrei esse artigo no cp.csv (verifique o CSV e o formato da coluna).")
+            st.info(
+                "Não encontrei esse artigo em CP_Codigo_Penal.s.csv "
+                "(verifique o CSV e o formato da coluna de artigos/texto)."
+            )
 
         st.subheader("📚 Resultado no Código de Processo Penal (CPP)")
         texto_cpp = buscar_artigo(cpp_df, artigo_input)
         if texto_cpp:
             st.code(texto_cpp)
         else:
-            st.info("Não encontrei esse artigo no cpp.csv (verifique o CSV e o formato da coluna).")
+            st.info(
+                "Não encontrei esse artigo em CPP_Codigo_Processo_Penal.s.csv "
+                "(verifique o CSV e o formato da coluna de artigos/texto)."
+            )
 
 st.markdown("---")
 
@@ -317,7 +325,10 @@ if modulo.startswith("2."):
     if texto_28a:
         st.code(texto_28a)
     else:
-        st.info("Não encontrei o art. 28-A no cpp.csv. Verifique o arquivo e o formato dos artigos.")
+        st.info(
+            "Não encontrei o art. 28-A em CPP_Codigo_Processo_Penal.s.csv. "
+            "Verifique o arquivo e o formato dos artigos (colunas)."
+        )
 
     st.subheader("Checklist")
 
