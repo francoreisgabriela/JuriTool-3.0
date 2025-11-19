@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 
 # ==========================
-# Funções auxiliares de base
+# CARREGAMENTO DAS BASES (CP e CPP)
 # ==========================
 
 @st.cache_data
@@ -12,7 +11,8 @@ def carregar_codigo(caminho):
         df = pd.read_csv(caminho)
         return df
     except FileNotFoundError:
-        st.warning(f"Arquivo não encontrado: {caminho}")
+        st.warning(f"Arquivo não encontrado: {caminho}. "
+                   f"Verifique se o arquivo está na mesma pasta do app.py.")
         return None
     except Exception as e:
         st.warning(f"Erro ao ler {caminho}: {e}")
@@ -29,135 +29,60 @@ def detectar_coluna_artigo(df):
 def detectar_coluna_texto(df):
     if df is None:
         return None
-    candidatos = [c for c in df.columns if "texto" in c.lower() 
-                  or "descr" in c.lower() 
-                  or "ementa" in c.lower()]
+    candidatos = [
+        c for c in df.columns
+        if "texto" in c.lower()
+        or "descr" in c.lower()
+        or "ementa" in c.lower()
+        or "conteudo" in c.lower()
+    ]
     return candidatos[0] if candidatos else None
 
 
-def detectar_coluna_crime(df):
-    if df is None:
-        return None
-    candidatos = [c for c in df.columns if "crime" in c.lower() 
-                  or "tipo" in c.lower() 
-                  or "descricao" in c.lower()]
-    return candidatos[0] if candidatos else None
-
-
-def buscar_artigo_por_numero(df, numero_artigo):
+def buscar_artigo(df, artigo_str):
     """
-    Tenta localizar o artigo no DF:
-    1) pela coluna de artigo (ex: 'artigo')
-    2) se não achar, tenta procurar '28-A' ou 'art. 28-A' em alguma coluna de texto.
+    Busca um artigo em um DataFrame (CP ou CPP) de forma tolerante.
+    - Primeiro tenta pela coluna de artigo (igualdade ou 'contains')
+    - Depois tenta 'contains' na coluna de texto.
+    Retorna uma string com o(s) resultado(s) ou None.
     """
-    if df is None:
+    if df is None or not artigo_str:
         return None
 
+    artigo_str = str(artigo_str).strip().lower()
     col_art = detectar_coluna_artigo(df)
     col_txt = detectar_coluna_texto(df)
 
-    # 1) Busca direta pela coluna de artigo
+    # 1) Busca pela coluna de artigo (mais estruturado)
     if col_art:
-        # normalizar para texto
-        serie = df[col_art].astype(str).str.strip().str.lower()
-        alvo = str(numero_artigo).strip().lower()
-        resultado = df[serie == alvo]
+        serie_art = df[col_art].astype(str).str.strip().str.lower()
+        # primeiro: igualdade
+        mask = (serie_art == artigo_str)
+        resultado = df[mask]
+        # se nada, tenta contains (útil pra "28-A" quando a coluna tem "Art. 28-A")
+        if resultado.empty:
+            mask = serie_art.str.contains(artigo_str, na=False)
+            resultado = df[mask]
+
         if not resultado.empty:
             if col_txt:
-                return "\n\n".join(resultado[col_txt].astype(str).tolist())
+                return "\n\n---\n\n".join(resultado[col_txt].astype(str).tolist())
             else:
                 return resultado.to_string(index=False)
 
-    # 2) Busca em texto (fallback)
+    # 2) Busca no texto (fallback)
     if col_txt:
         serie_txt = df[col_txt].astype(str).str.lower()
-        alvo = str(numero_artigo).strip().lower()
-        resultado = df[serie_txt.str.contains(alvo, na=False)]
+        mask = serie_txt.str.contains(artigo_str, na=False)
+        resultado = df[mask]
         if not resultado.empty:
-            return "\n\n".join(resultado[col_txt].astype(str).tolist())
+            return "\n\n---\n\n".join(resultado[col_txt].astype(str).tolist())
 
     return None
 
 
-def listar_crimes_cp(cp_df):
-    """
-    Tenta criar uma lista de crimes a partir do CP:
-    usa coluna com 'crime' ou 'tipo' ou 'descricao'.
-    """
-    col_crime = detectar_coluna_crime(cp_df)
-    if cp_df is None or col_crime is None:
-        return []
-    valores = cp_df[col_crime].dropna().astype(str).str.strip().unique().tolist()
-    valores = sorted(valores)
-    return valores
-
-
-def mostrar_dados_crime(crime_escolhido, cp_df, cpp_df):
-    """
-    Mostra informações do crime no CP e, se houver, no CPP.
-    """
-    if not crime_escolhido:
-        return
-
-    col_crime_cp = detectar_coluna_crime(cp_df)
-    col_txt_cp = detectar_coluna_texto(cp_df)
-
-    st.subheader("📚 Informações do CP relacionadas ao crime selecionado")
-    if col_crime_cp is not None:
-        filtro = cp_df[col_crime_cp].astype(str).str.strip() == crime_escolhido
-        resultado_cp = cp_df[filtro]
-        if not resultado_cp.empty:
-            if col_txt_cp:
-                for _, linha in resultado_cp.iterrows():
-                    bloco = ""
-                    for c in resultado_cp.columns:
-                        bloco += f"**{c}:** {linha[c]}\n"
-                    st.markdown("---")
-                    st.markdown(bloco)
-            else:
-                st.dataframe(resultado_cp)
-        else:
-            st.info("Não encontrei o crime selecionado na base do CP (verifique o CSV).")
-    else:
-        st.info("Não foi possível identificar uma coluna de 'crime' no CSV do CP.")
-
-    # Agora tenta achar algo no CPP que tenha referência ao mesmo crime (bem heurístico)
-    st.subheader("📚 Informações do CPP relacionadas (se houver)")
-    if cpp_df is not None:
-        col_crime_cpp = detectar_coluna_crime(cpp_df)
-        col_txt_cpp = detectar_coluna_texto(cpp_df)
-
-        if col_crime_cpp:
-            filtro_cpp = cpp_df[col_crime_cpp].astype(str).str.contains(
-                crime_escolhido, case=False, na=False
-            )
-            resultado_cpp = cpp_df[filtro_cpp]
-        elif col_txt_cpp:
-            filtro_cpp = cpp_df[col_txt_cpp].astype(str).str.contains(
-                crime_escolhido, case=False, na=False
-            )
-            resultado_cpp = cpp_df[filtro_cpp]
-        else:
-            resultado_cpp = pd.DataFrame()
-
-        if not resultado_cpp.empty:
-            if col_txt_cpp:
-                for _, linha in resultado_cpp.iterrows():
-                    bloco = ""
-                    for c in resultado_cpp.columns:
-                        bloco += f"**{c}:** {linha[c]}\n"
-                    st.markdown("---")
-                    st.markdown(bloco)
-            else:
-                st.dataframe(resultado_cpp)
-        else:
-            st.info("Não encontrei referências diretas ao crime no CPP (pelo CSV informado).")
-    else:
-        st.info("Base do CPP não carregada.")
-
-
 # ==========================
-# ANPP – Elegibilidade
+# ANPP – Elegibilidade (art. 28-A CPP)
 # ==========================
 
 def analisar_anpp(sem_violencia, pena_min_inferior_4, confissao,
@@ -189,8 +114,8 @@ def analisar_anpp(sem_violencia, pena_min_inferior_4, confissao,
             "**potencialmente elegível** ao Acordo de Não Persecução Penal (art. 28-A do CPP). "
             "Os requisitos considerados foram atendidos:\n\n"
             "- Fato sem violência ou grave ameaça;\n"
-            "- Pena mínima inferior a 4 anos;\n"
-            "- Confissão formal e circunstanciada;\n"
+            "- Pena mínima inferior a 4 (quatro) anos;\n"
+            "- Confissão formal e circunstanciada do investigado;\n"
             "- Ausência de reincidência dolosa relevante ou contexto impeditivo.\n\n"
             "⚠️ **Atenção:** Esta análise é apenas **didática**. A aplicação concreta do ANPP depende da "
             "interpretação do Ministério Público, da análise do caso concreto e da jurisprudência atual."
@@ -291,7 +216,7 @@ def gerar_fundamentacao(pena_min, pena_max, avaliacao_fatores, pena_base, causas
             sinal = "aumento" if c["tipo"] == "Aumento" else "diminuição"
             texto.append(
                 f"- Aplica-se uma causa de **{sinal}** de aproximadamente **{c['fator']*100:.1f}%** "
-                f"({c.get('descricao', 'sem descrição')})."
+                f"({c.get('descricao', 'sem descrição detalhada')})."
             )
         texto.append(
             f"\nApós a incidência dessas causas, a pena definitiva resulta em **{pena_final:.2f} anos**."
@@ -312,7 +237,7 @@ def gerar_fundamentacao(pena_min, pena_max, avaliacao_fatores, pena_base, causas
 
 
 # ==========================
-# Interface Streamlit
+# INTERFACE STREAMLIT
 # ==========================
 
 st.set_page_config(page_title="JuriToolbox (Educacional)", layout="wide")
@@ -326,28 +251,43 @@ st.markdown(
     """
 )
 
-# Carregar bases
+# Carrega CP e CPP
 cp_df = carregar_codigo("cp.csv")
 cpp_df = carregar_codigo("cpp.csv")
 
 # ==========================
-# Seleção de Crime (CP + CPP)
+# 1. BUSCA DE ARTIGO NO CP E CPP
 # ==========================
 
-st.header("1. Selecione o crime para consultar CP e CPP")
+st.header("1. Consulta de artigo no CP e CPP (via CSV)")
 
-lista_crimes = listar_crimes_cp(cp_df)
+artigo_input = st.text_input(
+    "Informe o artigo do crime (ex.: 155, 171, 121, 28-A):",
+    help="O programa vai buscar esse artigo nas bases cp.csv e cpp.csv."
+)
 
-if lista_crimes:
-    crime_escolhido = st.selectbox("Crime (a partir da base do CP):", lista_crimes)
-    mostrar_dados_crime(crime_escolhido, cp_df, cpp_df)
-else:
-    st.info("Não consegui montar a lista de crimes. Verifique se o `cp.csv` tem uma coluna como 'crime', 'tipo' ou 'descricao'.")
+if st.button("Buscar artigos no CP e CPP"):
+    if not artigo_input:
+        st.warning("Digite um artigo para buscar (ex.: 155, 28-A).")
+    else:
+        st.subheader("📚 Resultado no Código Penal (CP)")
+        texto_cp = buscar_artigo(cp_df, artigo_input)
+        if texto_cp:
+            st.code(texto_cp)
+        else:
+            st.info("Não encontrei esse artigo no cp.csv (verifique o CSV e o formato da coluna).")
+
+        st.subheader("📚 Resultado no Código de Processo Penal (CPP)")
+        texto_cpp = buscar_artigo(cpp_df, artigo_input)
+        if texto_cpp:
+            st.code(texto_cpp)
+        else:
+            st.info("Não encontrei esse artigo no cpp.csv (verifique o CSV e o formato da coluna).")
 
 st.markdown("---")
 
 # ==========================
-# Sidebar – Módulos extras
+# MENU LATERAL – MÓDULOS
 # ==========================
 
 modulo = st.sidebar.radio(
@@ -359,7 +299,7 @@ modulo = st.sidebar.radio(
 )
 
 # ==========================
-# Módulo 2 – ANPP
+# 2. ANPP
 # ==========================
 
 if modulo.startswith("2."):
@@ -367,20 +307,19 @@ if modulo.startswith("2."):
 
     st.markdown(
         """
-        Abaixo, um checklist simplificado para estudar os requisitos do art. 28-A do CPP.  
-        O objetivo é **estudo**, não decisão real.
+        Checklist **simplificado** para estudo dos requisitos do art. 28-A do CPP.  
+        Não é uma decisão real, apenas uma ferramenta didática.
         """
     )
 
-    # Mostrar texto do art. 28-A do CPP, se existir no CSV
     st.subheader("🧾 Texto do art. 28-A do CPP (a partir do CSV, se disponível)")
-    texto_28a = buscar_artigo_por_numero(cpp_df, "28-A")
+    texto_28a = buscar_artigo(cpp_df, "28-A")
     if texto_28a:
         st.code(texto_28a)
     else:
-        st.info("Não encontrei o art. 28-A no `cpp.csv`. Verifique o formato do arquivo.")
+        st.info("Não encontrei o art. 28-A no cpp.csv. Verifique o arquivo e o formato dos artigos.")
 
-    st.subheader("Checklist simplificado")
+    st.subheader("Checklist")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -407,15 +346,15 @@ if modulo.startswith("2."):
         )
 
         if elegivel:
-            st.success("Resultado: Caso potencialmente elegível ao ANPP (em tese).")
+            st.success("Resultado: caso potencialmente elegível ao ANPP (em tese).")
         else:
-            st.error("Resultado: Caso considerado não elegível ao ANPP neste modelo simplificado.")
+            st.error("Resultado: caso considerado não elegível ao ANPP neste modelo simplificado.")
 
         st.markdown("### Parecer gerado:")
         st.markdown(parecer)
 
 # ==========================
-# Módulo 3 – Dosimetria
+# 3. DOSIMETRIA
 # ==========================
 
 elif modulo.startswith("3."):
@@ -423,34 +362,31 @@ elif modulo.startswith("3."):
 
     st.markdown(
         """
-        Simulação didática da dosimetria da pena com base no art. 59 do CP.
+        Simulação **didática** da dosimetria da pena com base no art. 59 do CP.
         """
     )
 
-    col_art, col_limites = st.columns(2)
-
-    with col_limites:
+    col_limites1, col_limites2 = st.columns(2)
+    with col_limites1:
         pena_min = st.number_input("Pena mínima em abstrato (anos)", min_value=0.0, value=1.0, step=0.5)
-        pena_max = st.number_input("Pena máxima em abstrato (anos)", min_value=0.0, value=5.0, step=0.5)
+    with col_limites2:
+        pena_max = st.number_input("Pena máxima em abstrato (anos)", min_value=0.0, value=4.0, step=0.5)
 
-        if pena_max < pena_min:
-            st.error("A pena máxima não pode ser menor que a mínima.")
+    if pena_max < pena_min:
+        st.error("A pena máxima não pode ser menor que a pena mínima.")
 
     st.subheader("Circunstâncias judiciais (art. 59 CP)")
     opcoes = ["Desfavorável", "Neutra", "Favorável"]
 
     col1, col2, col3 = st.columns(3)
-
     with col1:
         culpabilidade = st.selectbox("Culpabilidade", opcoes, index=1)
         antecedentes = st.selectbox("Antecedentes", opcoes, index=1)
         conduta_social = st.selectbox("Conduta social", opcoes, index=1)
-
     with col2:
         personalidade = st.selectbox("Personalidade", opcoes, index=1)
         motivos = st.selectbox("Motivos", opcoes, index=1)
         circunstancias = st.selectbox("Circunstâncias", opcoes, index=1)
-
     with col3:
         consequencias = st.selectbox("Consequências", opcoes, index=1)
         comportamento_vitima = st.selectbox("Comportamento da vítima", opcoes, index=1)
@@ -471,7 +407,7 @@ elif modulo.startswith("3."):
 
     causas = []
     for i in range(num_causas):
-        st.markdown(f"**Causa {i + 1}:**")
+        st.markdown(f"**Causa {i+1}:**")
         c1, c2, c3 = st.columns([1, 1, 3])
         with c1:
             tipo = st.selectbox(f"Tipo {i+1}", ["Aumento", "Diminuição"], key=f"tipo_{i}")
