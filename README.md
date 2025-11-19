@@ -17,8 +17,8 @@ O usuário informa um **artigo** (ex.: `155`, `171`, `121`, `28-A`) em um campo 
 
 O aplicativo então:
 
-- Busca esse artigo na base `cp.csv` (Código Penal);
-- Busca o mesmo artigo na base `cpp.csv` (Código de Processo Penal);
+- Busca esse artigo na base `CP_Codigo_Penal.s.csv` (Código Penal);
+- Busca o mesmo artigo na base `CPP_Codigo_Processo_Penal.s.csv` (Código de Processo Penal);
 - Exibe o(s) texto(s) correspondente(s), usando as colunas de artigo e texto/descrição identificadas automaticamente.
 
 O código tenta ser tolerante com o formato das colunas, procurando por nomes como:
@@ -34,7 +34,7 @@ Módulo de checklist **didático** baseado no art. 28-A do CPP.
 
 Funcionalidades:
 
-- Tenta localizar e exibir o **texto do art. 28-A** na base `cpp.csv`;
+- Tenta localizar e exibir o **texto do art. 28-A** na base `CPP_Codigo_Processo_Penal.s.csv`;
 - Apresenta um conjunto de perguntas ao usuário, incluindo:
   - Fato sem violência ou grave ameaça à pessoa?
   - Pena mínima em abstrato inferior a 4 anos?
@@ -98,7 +98,7 @@ Simulador numérico da dosimetria da pena com base em parâmetros simplificados.
 ```text
 JuriToolbox/
 │
-├── app.py          # Aplicativo principal (Streamlit)
-├── cp.csv          # Código Penal estruturado em CSV
-├── cpp.csv         # Código de Processo Penal estruturado em CSV
-└── README.md       # Este arquivo
+├── app.py                              # Aplicativo principal (Streamlit)
+├── CP_Codigo_Penal.s.csv               # Código Penal estruturado em CSV
+├── CPP_Codigo_Processo_Penal.s.csv     # Código de Processo Penal estruturado em CSV
+└── README.md                           # Este arquivo
